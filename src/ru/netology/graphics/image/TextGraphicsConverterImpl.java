@@ -1,11 +1,9 @@
-package ru.netology.graphics.image.impl;
-
-import ru.netology.graphics.image.BadImageSizeException;
-import ru.netology.graphics.image.TextColorSchema;
-import ru.netology.graphics.image.TextGraphicsConverter;
+package ru.netology.graphics.image;
 
 import javax.imageio.ImageIO;
+import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.net.URL;
 
@@ -20,36 +18,55 @@ public class TextGraphicsConverterImpl implements TextGraphicsConverter {
     public String convert(String url) throws IOException, BadImageSizeException {
         BufferedImage img = ImageIO.read(new URL(url));
         int imgHeight = img.getHeight();
-        int imgWeight = img.getWidth();
-        if(maxRatio != 0.0){
-            double imgRatio = (double) imgWeight / imgHeight;
-            if(imgRatio != maxRatio){
+        int imgWidth = img.getWidth();
+        if (maxRatio != 0.0) {
+            double imgRatio = (double) imgWidth / imgHeight;
+            if (imgRatio > maxRatio) {
                 throw new BadImageSizeException(imgRatio, maxRatio);
             }
         }
-
-
-        if(img.getHeight() <= maxHeight && img.getWidth() <= maxWidth){
-
+        if (maxHeight != 0) {
+            if (imgHeight > maxHeight) {
+                double valForDecrease = (double) imgHeight / maxHeight;
+                imgHeight = (int) (imgHeight / valForDecrease);
+                imgWidth = (int) (imgWidth / valForDecrease);
+            }
         }
-            // Если конвертер попросили проверять на максимально допустимое
-            // соотношение сторон изображения, то вам здесь нужно сделать эту проверку,
-            // и, если картинка не подходит, выбросить исключение BadImageSizeException.
-            // Чтобы получить ширину картинки, вызовите img.getWidth(), высоту - img.getHeight()
+        if (maxWidth != 0) {
+            if (imgWidth > maxWidth) {
+                double valForDecrease = (double) imgWidth / maxWidth;
+                imgHeight = (int) (imgHeight / valForDecrease);
+                imgWidth = (int) (imgWidth / valForDecrease);
+            }
+        }
+        Image scaledImage = img.getScaledInstance(imgWidth, imgHeight, BufferedImage.SCALE_SMOOTH);
+        BufferedImage bwImg = new BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_BYTE_GRAY);
+        Graphics2D graphics = bwImg.createGraphics();
+        graphics.drawImage(scaledImage, 0, 0, null);
 
-            // Если конвертеру выставили максимально допустимые ширину и/или высоту,
-            // вам нужно по ним и по текущим высоте и ширине вычислить новые высоту
-            // и ширину.
-            // Соблюдение пропорций означает, что вы должны уменьшать ширину и высоту
-            // в одинаковое количество раз.
-            // Пример 1: макс. допустимые 100x100, а картинка 500x200. Новый размер
-            // будет 100x40 (в 5 раз меньше).
-            // Пример 2: макс. допустимые 100x30, а картинка 150x15. Новый размер
-            // будет 100x10 (в 1.5 раза меньше).
-            // Подумайте, какими действиями можно вычислить новые размеры.
-            // Не получается? Спросите вашего руководителя по курсовой, поможем.
 
-        return null;
+        WritableRaster bwRaster = bwImg.getRaster();
+
+        char[][] chars = new char[imgHeight][imgWidth];
+        for (int h = 0; h < imgHeight; h++) {
+            for (int w = 0; w < imgWidth; w++) {
+                int color = bwRaster.getPixel(w, h, new int[3])[0];
+                char c = textColorSchema.convert(color);
+                chars[h][w] = c;
+            }
+        }
+
+        StringBuilder imgString = new StringBuilder();
+
+        for(int h = 0; h < imgHeight; h++){
+            for(int w = 0; w < imgWidth; w++ ){
+                char symbol = chars[h][w];
+                imgString.append(symbol);
+                imgString.append(symbol);
+            }
+            imgString.append("\n");
+        }
+        return imgString.toString();
     }
 
     @Override
